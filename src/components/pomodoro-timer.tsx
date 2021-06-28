@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useInterval from '../hooks/use-interval';
+import { secondsToTime } from '../utils/seconds-to-time';
 import { Button } from './Button';
 import { Timer } from './timer';
 
@@ -15,18 +16,17 @@ export function PomodoroTimer(props: Props): JSX.Element {
   const [timeCounting, setTimeCounting] = useState(false);
   const [working, setWorking] = useState(false);
   const [resting, setResting] = useState(false);
-  useEffect(() => {
-    if (working) {
-      document.body.classList.add('working');
-    }
-    if (resting) {
-      document.body.classList.remove('working');
-    }
-  }, [working, resting]);
+  const [cyclesQtdManager, setCyclesQtdManager] = useState(
+    new Array(props.cycles - 1).fill(true),
+  );
+  const [complitedCycles, setComplitedCycles] = useState(0);
+  const [fullWorkingTime, setFullWorkingTime] = useState(0);
+  const [numberOfPomodoros, setNumberOfPomodoros] = useState(0);
 
   useInterval(
     () => {
       setMainTime(mainTime - 1);
+      if (working) setFullWorkingTime(fullWorkingTime + 1);
     },
     timeCounting ? 1000 : null,
   );
@@ -40,20 +40,40 @@ export function PomodoroTimer(props: Props): JSX.Element {
       setMainTime(props.shortRestTime);
     }
   };
+  const configureWork = () => {
+    setTimeCounting(true);
+    setWorking(true);
+    setResting(false);
+    setMainTime(props.pomodoroTime);
+  };
+
+  useEffect(() => {
+    if (working) {
+      document.body.classList.add('working');
+    }
+    if (resting) {
+      document.body.classList.remove('working');
+    }
+    if (mainTime > 0) return;
+
+    if (working && cyclesQtdManager.length > 0) {
+      configRest(false);
+      cyclesQtdManager.pop();
+    } else if (working && cyclesQtdManager.length <= 0) {
+      configRest(true);
+      setCyclesQtdManager(new Array(props.cycles - 1).fill(true));
+      setComplitedCycles(complitedCycles + 1);
+    }
+    if (working) setNumberOfPomodoros(numberOfPomodoros + 1);
+    if (resting) configureWork();
+  }, [working, resting, mainTime]);
+
   return (
     <div className="pomodoro">
-      <h2>You are: working</h2>
+      <h2>Você está: {working ? 'Trabalhando' : 'Descansando'} </h2>
       <Timer mainTime={mainTime} />
       <div className="controls">
-        <Button
-          text="Work"
-          onClick={() => {
-            setTimeCounting(true);
-            setWorking(true);
-            setResting(false);
-            setMainTime(props.pomodoroTime);
-          }}
-        />
+        <Button text="Work" onClick={() => configureWork()} />
         <Button text="Rest" onClick={() => configRest(false)} />
         {!working && !resting ? null : (
           <Button
@@ -65,7 +85,9 @@ export function PomodoroTimer(props: Props): JSX.Element {
         )}
       </div>
       <div className="details">
-        <p> dddddd</p>
+        <p> Ciclos concluídos: {complitedCycles}</p>
+        <p> Horas trabalhadas: {secondsToTime(fullWorkingTime)}</p>
+        <p>Pomodoros concluídos: {numberOfPomodoros}</p>
       </div>
     </div>
   );
